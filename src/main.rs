@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>>{
             client::init();
         }
         Commands::Server => {
-           server::init();
+           server::listen("127.0.0.1", 2222);
         }
     }
     Ok(())
