@@ -1,5 +1,11 @@
 # Hermes
-What I want to do is an application that permits local network communication as a chatroom.
+LAN communication via the TCP protocol in the form of a simple chatroom.
 
-## Rust
-I chose rust because I think the language has potential and I want to learn it. I'm not a rust advocate, I'm just rust-curious and I'm not ashamed of it. Help me at your own risk.
+## Milestones
+[X] Client has simple UI
+[X] Client can send messages to server
+[X] Server can reveive messages from client
+[X] Server can send messages to client
+[ ] Client can receive messages from server
+[ ] Client can display received messages from server
+[ ] Messages are rich
