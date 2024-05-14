@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>>{
     let args = Arguments::parse();
         match args.cmd {
         Commands::Client => {
-            client::init();
+            client::init("127.0.0.1", 2222);
         }
         Commands::Server => {
            server::listen("127.0.0.1", 2222);
