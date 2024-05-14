@@ -100,23 +100,25 @@ impl App {
         self.character_index = 0;
     }
 
-    fn submit_message(&mut self) {
-        self.server.write_all(self.input.clone().as_bytes());
+    async fn submit_message(&mut self) -> Result<(), Box<dyn Error>>{
+        self.server.write_all(self.input.clone().as_bytes()).await?;
         self.messages.push(self.input.clone());
         self.input.clear();
         self.reset_cursor();
+        Ok(())
     }
 
-    async fn update_message_queue(&mut self) -> Result<bool, Box<dyn Error>>{
-        let mut data = vec![0; 1024];
+    async fn update_message_queue(&mut self) -> Result<(), Box<dyn Error>>{
         let mut peeked = [0; 10];
         let n_bytes_waiting = self.server.peek(&mut peeked).await?;
         if n_bytes_waiting > 0 {
-            self.server.read(&mut data).await?;
-            let message = std::str::from_utf8(&data[..]).expect("error parsing received message").to_string();
-            self.messages.push(message);
+        let mut data = vec![0; 1024];
+        self.server.read(&mut data).await?;
+        let message = std::str::from_utf8(&data[..]).expect("error parsing received message").to_string();
+        self.messages.push(message);
         };
-        Ok(n_bytes_waiting > 0)
+
+       Ok(())
     }
 }
 
@@ -133,8 +135,8 @@ pub async fn init(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
 
     // create app and run it
     let mut socket = TcpStream::connect(&server_address).await.expect("Failed to connect");
-    let app = App::new(socket);
-    let res = run_app(&mut terminal, app);
+    let mut app = App::new(socket);
+    let res = run_app(&mut terminal, &mut app).await?;
 
     // restore terminal
     disable_raw_mode()?;
@@ -145,16 +147,13 @@ pub async fn init(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
     )?;
     terminal.show_cursor()?;
 
-    if let Err(err) = res {
-        println!("{err:?}");
-    }
-
     Ok(())
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<()> {
+async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> Result<(), Box<dyn Error>> {
 
-    loop {
+    let mut should_run: bool = true;
+    while should_run {
         app.update_message_queue();
         terminal.draw(|f| ui(f, &app))?;
 
@@ -165,12 +164,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                         app.input_mode = InputMode::Editing;
                     }
                     KeyCode::Char('q') => {
-                        return Ok(());
+                        should_run = false;
                     }
                     _ => {}
                 },
                 InputMode::Editing if key.kind == KeyEventKind::Press => match key.code {
-                    KeyCode::Enter => app.submit_message(),
+                    KeyCode::Enter => {
+                        app.submit_message().await.expect("Failed to send message to remote server");
+                    }
                     KeyCode::Char(to_insert) => {
                         app.enter_char(to_insert);
                     }
@@ -191,7 +192,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> io::Result<(
                 InputMode::Editing => {}
             }
         }
-    }
+    };
+    Ok(())
 }
 
 fn ui(f: &mut Frame, app: &App) {
