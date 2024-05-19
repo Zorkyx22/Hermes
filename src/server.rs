@@ -6,7 +6,6 @@ async fn handle_connection(conn: TcpStream) -> Result<(), Box<dyn Error>> {
     let peer: String = format!("{:?}",conn.peer_addr().expect("Bad connection"));
     let (mut reader, mut writer) = io::split(conn);
     println!("Host {:?} has connected", peer);
-    let _ = writer.write_all("On essaye ca".as_bytes());
 
     loop {
         let mut data = vec![0; 1024];
@@ -15,7 +14,9 @@ async fn handle_connection(conn: TcpStream) -> Result<(), Box<dyn Error>> {
                 break
             }
             _ => {
-                println!("Read : {}", String::from_utf8(data).expect("Invalid Bytes"));
+                let incoming =  String::from_utf8(data).expect("Invalid Bytes");
+                println!("Read : {}", incoming);
+                writer.write_all(&incoming.into_bytes()).await?;
             }
         }
     }
