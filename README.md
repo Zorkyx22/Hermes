@@ -23,5 +23,7 @@ I saw an example where the server holds a state object with a hashmap and a broa
 - [X] Server can send messages to client
 - [X] Client can receive messages from server
 - [X] Client can display received messages from server
+- [ ] Client can setup rich messaging context (username, etc)
 - [ ] Messages are rich
-- [ ] Server can send messages to multiple clients
+- [X] Server can send messages to multiple clients
+- [ ] Client UI is separated from control

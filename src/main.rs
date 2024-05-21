@@ -11,25 +11,20 @@ struct Arguments {
 #[derive(Subcommand, Debug)]
 enum Commands {
     Client,
-    Server,
-    Getout
+    Server
 }
 
 mod client;
 mod server;
-mod fuckit;
 
 fn main() -> Result<(), Box<dyn Error>>{
     let args = Arguments::parse();
         match args.cmd {
         Commands::Client => {
-            client::init("127.0.0.1", 2222);
+            let _ = client::init("127.0.0.1", 2222);
         }
         Commands::Server => {
-           server::listen("127.0.0.1", 2222);
-        }
-        Commands::Getout => {
-            fuckit::go("127.0.0.1:2222");
+           let _ = server::listen("127.0.0.1", 2222);
         }
     }
     Ok(())

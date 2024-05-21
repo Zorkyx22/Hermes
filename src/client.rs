@@ -1,6 +1,6 @@
 use std::{error::Error, io, time::Duration};
 use tokio::net::TcpStream;
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
+use tokio::io::{AsyncWriteExt};
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
@@ -102,30 +102,26 @@ impl App {
 
     async fn submit_message(&mut self) -> Result<(), Box<dyn Error>>{
         self.server.write_all(self.input.clone().as_bytes()).await?;
-//      self.messages.push(self.input.clone());
         self.input.clear();
         self.reset_cursor();
         Ok(())
     }
 
-  fn update_message_queue(&mut self) -> Result<(), Box<dyn Error>>{
+  fn update_message_queue(&mut self) { 
         let mut data = vec![0; 1024];
         match self.server.try_read(&mut data){
-            Ok(n) => {
+            Ok(_n) => {
                 // Process the data here
                 let message = std::str::from_utf8(&data[..]).expect("error parsing received message").to_string();
                 self.messages.push(message);
-                Ok(())
             },
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 // No data was available, so we wait and try again
-                Ok(())
             },
-            Err(e) => {
-                Err(e)
+            Err(_) => {
+                // Other errors. I'm not yet sure how to handle them.
             }
         };
-        Ok(())
     }
 }
 
@@ -141,9 +137,9 @@ pub async fn init(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
     let mut terminal = Terminal::new(backend)?;
 
     // create app and run it
-    let mut socket = TcpStream::connect(&server_address).await.expect("Failed to connect");
+    let socket = TcpStream::connect(&server_address).await.expect("Failed to connect");
     let mut app = App::new(socket);
-    let res = run_app(&mut terminal, &mut app).await?;
+    let _res = run_app(&mut terminal, &mut app).await?;
 
     // restore terminal
     disable_raw_mode()?;
@@ -157,7 +153,7 @@ pub async fn init(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> Result<(), Box<dyn Error>> {
+async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<(), Box<dyn Error>> {
 
     let mut should_run: bool = true;
 
@@ -190,7 +186,7 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> R
                         KeyCode::Left => {
                             app.move_cursor_left();
                         }
-                        KeyCode::Right => {
+                        KeyCode::Right=> {
                             app.move_cursor_right();
                         }
                         KeyCode::Esc => {
@@ -237,8 +233,8 @@ fn ui(f: &mut Frame, app: &App) {
         .messages
         .iter()
         .enumerate()
-        .map(|(i, m)| {
-            let content = Line::from(Span::raw(format!("{i}: {m}")));
+        .map(|(_i, m)| {
+            let content = Line::from(Span::raw(format!("{m}")));
             ListItem::new(content)
         })
         .collect();
