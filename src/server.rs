@@ -6,9 +6,30 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+// I want to make an object to represent a connection, with a method for listening, sending, and
+// sharing all messages. I will probably create a HashMap containing all objects like in the
+// example listed in the readme.
+struct Chatroom {
+    members: HashMap<SocketAddr, WriteHalf<TcpStream>>,
+}
+impl Chatroom {
+    fn new() -> Self {
+        Chatroom {
+            members: HashMap::new(),
+        }
+    }
+
+    async fn broadcast(&mut self, message: String) {
+        for member in self.members.iter_mut() {
+            println!("{}", message.clone());
+            member.1.write_all(message.as_bytes()).await.expect("Broadcasting error");
+        }
+    }
+
+}
+
 #[tokio::main]
-pub async fn listen(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
-    let listen_address: String = format!("{}:{}", addr, port);
+pub async fn listen(listen_address: String) -> Result<(), Box<dyn Error>> {
     println!(
         "listening started on {}, ready to accept incoming traffic",
         &listen_address
@@ -30,10 +51,9 @@ pub async fn listen(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
 // next.
 async fn handle_connection(room: Arc<Mutex<Chatroom>>, conn: TcpStream) -> Result<(), Box<dyn Error>> {
     let peer: SocketAddr = conn.peer_addr().expect("Bad connection");
-    let (mut reader, mut writer) = io::split(conn);
+    let (mut reader, writer) = io::split(conn);
     let mut room_lock = room.lock().await;
     room_lock.members.insert(peer.clone(), writer);
-    room_lock.broadcast(format!("Host {:?} has connected", &peer)).await;
     drop(room_lock);
     
     println!("Host {:?} has connected", &peer);
@@ -46,7 +66,6 @@ async fn handle_connection(room: Arc<Mutex<Chatroom>>, conn: TcpStream) -> Resul
             }
             _ => {
                 let incoming =  String::from_utf8(data).expect("Invalid Bytes");
-                println!("Read : {}", incoming);
                 room.lock().await.broadcast(incoming).await;
             }
         }
@@ -54,31 +73,9 @@ async fn handle_connection(room: Arc<Mutex<Chatroom>>, conn: TcpStream) -> Resul
 
     let mut room_lock = room.lock().await;
     room_lock.members.remove(&peer);
-    room_lock.broadcast(format!("Host {:?} has disconnected", &peer)).await;
     drop(room_lock);
     
     println!("Host {:?} has disconnected", &peer);
     Ok(())
-}
-
-// I want to make an object to represent a connection, with a method for listening, sending, and
-// sharing all messages. I will probably create a HashMap containing all objects like in the
-// example listed in the readme.
-struct Chatroom {
-    members: HashMap<SocketAddr, WriteHalf<TcpStream>>,
-}
-impl Chatroom {
-    fn new() -> Self {
-        Chatroom {
-            members: HashMap::new(),
-        }
-    }
-
-    async fn broadcast(&mut self, message: String) {
-        for member in self.members.iter_mut() {
-            member.1.write_all(message.as_bytes()).await.expect("Broadcasting error");
-        }
-    }
-
 }
 

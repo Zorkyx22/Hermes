@@ -10,21 +10,32 @@ struct Arguments {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    Client,
-    Server
+    Client {
+        #[clap(short='a', long)]
+        addr: String,
+        #[clap(short='n', long)]
+        username: String,
+    },
+    Server {
+        #[clap(short='a', long)]
+        addr: String,
+    }
 }
 
 mod client;
 mod server;
+mod app;
+mod screens;
+mod datatypes;
 
 fn main() -> Result<(), Box<dyn Error>>{
     let args = Arguments::parse();
         match args.cmd {
-        Commands::Client => {
-            let _ = client::init("127.0.0.1", 2222);
+        Commands::Client {addr, username} => {
+            let _ = client::init(addr, username);
         }
-        Commands::Server => {
-           let _ = server::listen("127.0.0.1", 2222);
+        Commands::Server {addr} => {
+           let _ = server::listen(addr);
         }
     }
     Ok(())

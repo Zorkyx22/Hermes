@@ -1,29 +1,22 @@
 use std::{error::Error, io, time::Duration};
 use tokio::net::TcpStream;
-use tokio::io::{AsyncWriteExt};
+
+use ratatui::{
+    prelude::*,
+};
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{
-    prelude::*,
-    widgets::{Block, List, ListItem, Paragraph},
-};
 
-pub mod app;
-
-enum InputMode {
-    Normal,
-    Editing,
-}
-
+use crate::app::App;
+use crate::screens::ui;
+use crate::datatypes::{InputMode, UserAction};
 
 #[tokio::main]
-pub async fn init(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
-    let server_address: String = format!("{}:{}", addr, port);
-
+pub async fn init(server_address: String, username: String) -> Result<(), Box<dyn Error>> {
 // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -33,7 +26,8 @@ pub async fn init(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
 
     // create app and run it
     let socket = TcpStream::connect(&server_address).await.expect("Failed to connect");
-    let mut app = App::new(socket);
+    let mut app = App::new(socket, username.to_string());
+    app.send_system_message(UserAction::Join).await.expect("Failed to send join message");
     let _res = run_app(&mut terminal, &mut app).await?;
 
     // restore terminal
@@ -44,6 +38,7 @@ pub async fn init(addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
         DisableMouseCapture
     )?;
     terminal.show_cursor()?;
+    app.send_system_message(UserAction::Leave).await.expect("Failed to send leave message");
 
     Ok(())
 }
@@ -55,7 +50,6 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Resul
     while should_run {
         let _ = app.update_message_queue();
         terminal.draw(|f| ui(f, &app))?;
-
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match app.input_mode {
@@ -93,83 +87,6 @@ async fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Resul
                 }
             }
         }
-    };
+   };
     Ok(())
-}
-
-fn ui(f: &mut Frame, app: &App) {
-    let vertical = Layout::vertical([
-        Constraint::Percentage(100),
-        Constraint::Length(3),
-        Constraint::Length(1),
-    ]);
-    let [messages_area,input_area, help_area] = vertical.areas(f.size());
-    match app.input_mode {
-        InputMode::Normal =>
-            // Hide the cursor. `Frame` does this by default, so we don't need to do anything here
-            {}
-
-        InputMode::Editing => {
-            // Make the cursor visible and ask ratatui to put it at the specified coordinates after
-            // rendering
-            #[allow(clippy::cast_possible_truncation)]
-            f.set_cursor(
-                // Draw the cursor at the current position in the input field.
-                // This position is can be controlled via the left and right arrow key
-                input_area.x + app.character_index as u16 + 1,
-                // Move one line down, from the border to the input line
-                input_area.y + 1,
-            );
-        }
-    }
-
-    // MESSAGES render
-    let messages: Vec<ListItem> = app
-        .messages
-        .iter()
-        .enumerate()
-        .map(|(_i, m)| {
-            let content = Line::from(Span::raw(format!("{m}")));
-            ListItem::new(content)
-        })
-        .collect();
-    let messages = List::new(messages).block(Block::bordered().title("Messages"));
-    f.render_widget(messages, messages_area);
-
-    // INPUT render
-    let input = Paragraph::new(app.input.as_str())
-        .style(match app.input_mode {
-            InputMode::Normal => Style::default(),
-            InputMode::Editing => Style::default().fg(Color::Yellow),
-        })
-        .block(Block::bordered().title("Input"));
-    f.render_widget(input, input_area);
-
-    // HELP render
-    let (msg, style) = match app.input_mode {
-        InputMode::Normal => (
-            vec![
-                "Press ".into(),
-                "q".bold(),
-                " to exit, ".into(),
-                "e".bold(),
-                " to start editing.".bold(),
-            ],
-            Style::default().add_modifier(Modifier::RAPID_BLINK),
-        ),
-        InputMode::Editing => (
-            vec![
-                "Press ".into(),
-                "Esc".bold(),
-                " to stop editing, ".into(),
-                "Enter".bold(),
-                " to record the message".into(),
-            ],
-            Style::default(),
-        ),
-    };
-    let text = Text::from(Line::from(msg)).patch_style(style);
-    let help_message = Paragraph::new(text);
-    f.render_widget(help_message, help_area);
-
 }
