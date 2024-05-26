@@ -13,7 +13,7 @@ enum Commands {
     Client {
         #[clap(short='a', long)]
         addr: String,
-        #[clap(short='n', long)]
+        #[clap(short='u', long)]
         username: String,
     },
     Server {

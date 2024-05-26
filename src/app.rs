@@ -106,7 +106,8 @@ impl App {
             Ok(_n) => {
                 // Process the data here
                 let raw_data = std::str::from_utf8(&data[..]).expect("error parsing received message").to_string();
-                let message: ChatMessage = serde_json::from_str(&raw_data).expect(&format!("error deserializing json {}", raw_data.clone()));
+                let trimmed = raw_data.trim_matches(char::from(0));
+                let message = serde_json::from_str(&trimmed).expect(&format!("error deserializing json with length {} : {}", raw_data.chars().count(), raw_data.clone()));
                 self.messages.push(message);
             },
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
@@ -119,7 +120,7 @@ impl App {
     }
 
     pub async fn send_system_message(&mut self, action: UserAction) -> Result<(), Box<dyn Error>> {
-        let mut message: String = String::new();
+        let message: String;
         match action {
             UserAction::Join => {message = format!("-=[{} has joined!]=-", self.username.clone());}
             UserAction::Leave => {message = format!("-=[{} has left!]=-", self.username.clone());}

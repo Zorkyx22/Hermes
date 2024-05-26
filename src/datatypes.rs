@@ -41,7 +41,7 @@ impl ChatMessage {
 impl fmt::Display for ChatMessage {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.msg_type {
-            MessageType::Chat => {write!(f, "[{}] {} : {}", self.time, self.user, self.message)}
+            MessageType::Chat => {write!(f, "[{}] {} : {}", self.time.format("%H:%M"), self.user, self.message)}
             MessageType::System => {write!(f, "{}", self.message)}
         }
     }

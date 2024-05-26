@@ -21,7 +21,6 @@ impl Chatroom {
 
     async fn broadcast(&mut self, message: String) {
         for member in self.members.iter_mut() {
-            println!("{}", message.clone());
             member.1.write_all(message.as_bytes()).await.expect("Broadcasting error");
         }
     }
@@ -55,7 +54,6 @@ async fn handle_connection(room: Arc<Mutex<Chatroom>>, conn: TcpStream) -> Resul
     let mut room_lock = room.lock().await;
     room_lock.members.insert(peer.clone(), writer);
     drop(room_lock);
-    
     println!("Host {:?} has connected", &peer);
 
     loop {
